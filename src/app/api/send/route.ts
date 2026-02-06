@@ -3,7 +3,14 @@ import { config } from "@/data/config";
 import { Resend } from "resend";
 import { z } from "zod";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization to avoid build-time errors when API key is missing
+const getResend = () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured. Please add it to your environment variables.");
+  }
+  return new Resend(apiKey);
+};
 
 const Email = z.object({
   fullName: z.string().min(2, "Full name is invalid!"),
@@ -22,6 +29,8 @@ export async function POST(req: Request) {
     if (!zodSuccess)
       return Response.json({ error: zodError?.message }, { status: 400 });
 
+    // Initialize Resend only when the route is called
+    const resend = getResend();
     const { data: resendData, error: resendError } = await resend.emails.send({
       from: "Porfolio <onboarding@resend.dev>",
       to: [config.email],
